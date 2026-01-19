@@ -3,7 +3,7 @@ import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 
 export interface Categoria { id: string; nombre: string; }
-export interface Marca { id: string; nombre: string; categoriaId: string; }
+export interface Marca { id: string; nombre: string; categoriaId: string; meta?: number; }
 export interface Venta { id?: string; fecha: string; monto: number; cantidad: number; marcaId: string; categoriaId: string; }
 
 @Injectable({
@@ -11,7 +11,7 @@ export interface Venta { id?: string; fecha: string; monto: number; cantidad: nu
 })
 
 export class ApiService {
-    private baseUrl = 'https://backend-ventas-172543286322.us-central1.run.app';
+    private baseUrl = 'http://localhost:3000/api';
 
     constructor(private http: HttpClient){ }
 
@@ -25,5 +25,9 @@ export class ApiService {
 
     addVenta(venta: Venta): Observable<any> {
         return this.http.post(`${this.baseUrl}/ventas`, venta);
+    }
+
+    updateMeta(marcaId: string, meta: number): Observable<any> {
+        return this.http.put(`${this.baseUrl}/marcas/${marcaId}/meta`, { meta });
     }
 }
