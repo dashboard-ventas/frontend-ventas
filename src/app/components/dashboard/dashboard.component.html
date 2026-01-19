@@ -1,175 +1,173 @@
-<div class="min-h-screen bg-gray-50 p-6">
-  <div class="max-w-7xl mx-auto space-y-6">
+<div class="dashboard-container">
+  <div class="content-wrapper">
 
-    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-600">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800">Dashboard de Ventas</h1>
-        <p class="text-gray-500">Resumen general y métricas de rendimiento</p>
+    <div class="header-card">
+      <div class="header-text">
+        <h1>Dashboard de Ventas</h1>
+        <p>Resumen general y métricas de rendimiento</p>
       </div>
-      <div class="flex gap-3 mt-4 md:mt-0">
-        <button (click)="abrirModalMeta()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-2 transition-transform hover:scale-105">
-           🎯 Cambiar Meta
+      <div class="header-actions">
+        <button (click)="abrirModalMeta()" class="btn btn-purple">
+          Cambiar Meta
         </button>
-        <button (click)="abrirModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-2 transition-transform hover:scale-105">
-           + Nueva Venta
-        </button>
-      </div>
-    </div>
-
-    <div class="bg-white p-6 rounded-xl shadow-sm">
-      <div class="flex flex-col md:flex-row items-end gap-4">
-        <div class="w-full">
-            <label class="text-xs text-gray-500 font-bold uppercase">Categoría</label>
-            <select [(ngModel)]="filtros.categoriaId" (change)="onFiltroCategoriaChange()" class="w-full p-2 border border-gray-300 rounded text-sm">
-                <option value="">Todas</option>
-                <option *ngFor="let c of categorias" [value]="c.id">{{ c.nombre }}</option>
-            </select>
-        </div>
-        <div class="w-full">
-            <label class="text-xs text-gray-500 font-bold uppercase">Marca</label>
-            <select [(ngModel)]="filtros.marcaId" class="w-full p-2 border border-gray-300 rounded text-sm">
-                <option value="">Todas</option>
-                <option *ngFor="let m of marcasDashboard" [value]="m.id">{{ m.nombre }}</option>
-            </select>
-        </div>
-        <div class="w-full">
-             <label class="text-xs text-gray-500 font-bold uppercase">Mes</label>
-            <input type="month" [(ngModel)]="filtros.mes" class="w-full p-2 border border-gray-300 rounded text-sm">
-        </div>
-        <button (click)="aplicarFiltros()" class="w-full md:w-auto bg-gray-800 text-white px-6 py-2 rounded hover:bg-black font-medium h-[42px]">
-            Filtrar
+        <button (click)="abrirModal()" class="btn btn-primary">
+          + Nueva Venta
         </button>
       </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-      <h3 class="text-xl font-bold text-gray-800 mb-6">Gráfico de Rendimiento</h3>
-      <div class="relative w-full h-[300px]">
+    <div class="card filter-section">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label>Categoría</label>
+          <select [(ngModel)]="filtros.categoriaId" (change)="onFiltroCategoriaChange()">
+            <option value="">Todas</option>
+            <option *ngFor="let c of categorias" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Marca</label>
+          <select [(ngModel)]="filtros.marcaId">
+            <option value="">Todas</option>
+            <option *ngFor="let m of marcasDashboard" [value]="m.id">{{ m.nombre }}</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>Mes</label>
+          <input type="month" [(ngModel)]="filtros.mes">
+        </div>
+        <button (click)="aplicarFiltros()" class="btn btn-dark btn-filter">
+          Filtrar
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Gráfico de Rendimiento</h3>
+      <div class="chart-container">
         <canvas *ngIf="isBrowser" baseChart [data]="barChartData" [options]="barChartOptions" [type]="barChartType"></canvas>
       </div>
     </div>
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">🎯 Progreso de Metas por Marca</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div *ngFor="let item of progresoMetas" class="p-4 rounded-lg border border-gray-100 bg-gray-50">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-bold text-gray-700">{{ item.nombre }}</span>
-                    <span class="text-xs font-semibold px-2 py-1 rounded" 
-                          [ngClass]="item.cumplido ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">
+    <div class="card">
+      <h3 class="card-title">Progreso de Metas por Marca</h3>
+      <div class="meta-grid">
+        <div *ngFor="let item of progresoMetas" class="meta-card">
+          <div class="meta-header">
+            <span class="meta-name">{{ item.nombre }}</span>
+            <span class="status-badge"
+                  [ngClass]="item.cumplido ? 'status-success' : 'status-warning'">
                         {{ item.porcentaje | number:'1.0-0' }}%
                     </span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" [style.width.%]="item.porcentaje"></div>
-                </div>
-                <div class="flex justify-between text-xs text-gray-500">
-                    <span>Ventas: <strong>S/. {{ item.ventas | number:'1.0-0' }}</strong></span>
-                    <span>Meta: S/. {{ item.meta | number:'1.0-0' }}</span>
-                </div>
-            </div>
-            <div *ngIf="progresoMetas.length === 0" class="col-span-3 text-center text-gray-400 py-4">
-                No hay datos para mostrar metas.
-            </div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" [style.width.%]="item.porcentaje"></div>
+          </div>
+          <div class="meta-footer">
+            <span>Ventas: <strong>S/. {{ item.ventas | number:'1.0-0' }}</strong></span>
+            <span>Meta: S/. {{ item.meta | number:'1.0-0' }}</span>
+          </div>
         </div>
+        <div *ngIf="progresoMetas.length === 0" class="no-data-msg">
+          No hay datos para mostrar metas.
+        </div>
+      </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-      <div class="p-6 border-b border-gray-100">
-        <h3 class="text-xl font-bold text-gray-800">Historial Detallado</h3>
+    <div class="card table-card">
+      <div class="table-header">
+        <h3 class="card-title">Historial Detallado</h3>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+      <div class="table-responsive">
+        <table class="data-table">
           <thead>
-            <tr class="bg-gray-50 text-gray-600 uppercase text-sm">
-              <th class="py-3 px-6">Fecha</th>
-              <th class="py-3 px-6">Marca</th>
-              <th class="py-3 px-6 text-center">Cantidad</th>
-              <th class="py-3 px-6 text-right">Monto</th>
-            </tr>
+          <tr>
+            <th>Fecha</th>
+            <th>Marca</th>
+            <th class="text-center">Cantidad</th>
+            <th class="text-right">Monto</th>
+          </tr>
           </thead>
-          <tbody class="text-gray-600 text-sm">
-            <tr *ngFor="let venta of ventasPaginadas" class="border-b border-gray-100 hover:bg-gray-50">
-              <td class="py-3 px-6">{{ venta.fecha }}</td>
-              <td class="py-3 px-6">{{ venta.marca }}</td>
-              <td class="py-3 px-6 text-center">
-                <span class="bg-blue-100 text-blue-600 py-1 px-3 rounded-full text-xs font-bold">{{ venta.cantidad }}</span>
-              </td>
-              <td class="py-3 px-6 text-right font-bold text-green-600">S/. {{ venta.monto | number:'1.2-2' }}</td>
-            </tr>
+          <tbody>
+          <tr *ngFor="let venta of ventasPaginadas">
+            <td>{{ venta.fecha }}</td>
+            <td>{{ venta.marca }}</td>
+            <td class="text-center">
+              <span class="qty-badge">{{ venta.cantidad }}</span>
+            </td>
+            <td class="text-right amount-text">S/. {{ venta.monto | number:'1.2-2' }}</td>
+          </tr>
           </tbody>
         </table>
       </div>
-      
-      <div class="p-4 flex justify-between items-center bg-gray-50 border-t border-gray-200">
-          <button (click)="cambiarPagina(-1)" [disabled]="paginaActual === 1" 
-                  class="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 text-sm">
-              Anterior
-          </button>
-          <span class="text-sm text-gray-600">Página {{ paginaActual }} de {{ totalPaginas || 1 }}</span>
-          <button (click)="cambiarPagina(1)" [disabled]="paginaActual >= totalPaginas" 
-                  class="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 text-sm">
-              Siguiente
-          </button>
+
+      <div class="pagination-controls">
+        <button (click)="cambiarPagina(-1)" [disabled]="paginaActual === 1" class="btn btn-outline">
+          Anterior
+        </button>
+        <span class="page-info">Página {{ paginaActual }} de {{ totalPaginas || 1 }}</span>
+        <button (click)="cambiarPagina(1)" [disabled]="paginaActual >= totalPaginas" class="btn btn-outline">
+          Siguiente
+        </button>
       </div>
     </div>
   </div>
 
-  <div *ngIf="mostrarModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-      <div class="bg-blue-600 p-6 flex justify-between items-center rounded-t-xl">
-        <h2 class="text-xl font-bold text-white">Registrar Nueva Venta</h2>
-        <button (click)="cerrarModales()" class="text-white text-2xl font-bold">&times;</button>
+  <div *ngIf="mostrarModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header bg-blue">
+        <h2>Registrar Nueva Venta</h2>
+        <button (click)="cerrarModales()" class="close-btn">&times;</button>
       </div>
-      <div class="p-8 space-y-4">
-         <div><label>Fecha</label><input type="date" [(ngModel)]="formulario.fecha" class="w-full border p-2 rounded"></div>
-         <div>
-            <label>Categoría</label>
-            <select [(ngModel)]="formulario.categoriaId" (change)="onFormCategoriaChange()" class="w-full border p-2 rounded">
-                <option *ngFor="let c of categorias" [value]="c.id">{{c.nombre}}</option>
-            </select>
-         </div>
-         <div>
-            <label>Marca</label>
-            <select [(ngModel)]="formulario.marcaId" class="w-full border p-2 rounded">
-                <option *ngFor="let m of marcasFormulario" [value]="m.id">{{m.nombre}}</option>
-            </select>
-         </div>
-         <div class="grid grid-cols-2 gap-4">
-             <div><label>Monto</label><input type="number" [(ngModel)]="formulario.monto" class="w-full border p-2 rounded"></div>
-             <div><label>Cantidad</label><input type="number" [(ngModel)]="formulario.cantidad" class="w-full border p-2 rounded"></div>
-         </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Fecha</label><input type="date" [(ngModel)]="formulario.fecha"></div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select [(ngModel)]="formulario.categoriaId" (change)="onFormCategoriaChange()">
+            <option *ngFor="let c of categorias" [value]="c.id">{{c.nombre}}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Marca</label>
+          <select [(ngModel)]="formulario.marcaId">
+            <option *ngFor="let m of marcasFormulario" [value]="m.id">{{m.nombre}}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Monto</label><input type="number" [(ngModel)]="formulario.monto"></div>
+          <div class="form-group"><label>Cantidad</label><input type="number" [(ngModel)]="formulario.cantidad"></div>
+        </div>
       </div>
-      <div class="bg-gray-50 p-6 flex justify-end gap-3 rounded-b-xl">
-        <button (click)="cerrarModales()" class="px-5 py-2 bg-gray-300 rounded">Cancelar</button>
-        <button (click)="guardarVenta()" class="px-5 py-2 bg-blue-600 text-white rounded">Guardar</button>
+      <div class="modal-footer">
+        <button (click)="cerrarModales()" class="btn btn-secondary">Cancelar</button>
+        <button (click)="guardarVenta()" class="btn btn-primary">Guardar</button>
       </div>
     </div>
   </div>
 
-  <div *ngIf="mostrarModalMeta" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
-      <div class="bg-purple-600 p-6 flex justify-between items-center rounded-t-xl">
-        <h2 class="text-xl font-bold text-white">Definir Meta de Venta</h2>
-        <button (click)="cerrarModales()" class="text-white text-2xl font-bold">&times;</button>
+  <div *ngIf="mostrarModalMeta" class="modal-overlay">
+    <div class="modal-container meta-modal-width">
+      <div class="modal-header bg-purple">
+        <h2>Definir Meta de Venta</h2>
+        <button (click)="cerrarModales()" class="close-btn">&times;</button>
       </div>
-      <div class="p-8 space-y-4">
-         <p class="text-sm text-gray-500">Selecciona una marca y define cuánto esperas vender (S/.) en total.</p>
-         <div>
-            <label class="block font-semibold mb-1">Marca</label>
-            <select [(ngModel)]="formularioMeta.marcaId" class="w-full border p-3 rounded bg-gray-50">
-                <option value="">-- Seleccionar Marca --</option>
-                <option *ngFor="let m of marcas" [value]="m.id">{{m.nombre}}</option>
-            </select>
-         </div>
-         <div>
-            <label class="block font-semibold mb-1">Meta Objetivo (S/.)</label>
-            <input type="number" [(ngModel)]="formularioMeta.nuevoMonto" class="w-full border p-3 rounded bg-gray-50" placeholder="Ej: 5000">
-         </div>
+      <div class="modal-body">
+        <p class="modal-desc">Selecciona una marca y define cuánto esperas vender (S/.) en total.</p>
+        <div class="form-group">
+          <label>Marca</label>
+          <select [(ngModel)]="formularioMeta.marcaId">
+            <option value="">-- Seleccionar Marca --</option>
+            <option *ngFor="let m of marcas" [value]="m.id">{{m.nombre}}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Meta Objetivo (S/.)</label>
+          <input type="number" [(ngModel)]="formularioMeta.nuevoMonto" placeholder="Ej: 5000">
+        </div>
       </div>
-      <div class="bg-gray-50 p-6 flex justify-end gap-3 rounded-b-xl">
-        <button (click)="cerrarModales()" class="px-5 py-2 bg-gray-300 rounded">Cancelar</button>
-        <button (click)="guardarMeta()" class="px-5 py-2 bg-purple-600 text-white rounded font-bold">Actualizar Meta</button>
+      <div class="modal-footer">
+        <button (click)="cerrarModales()" class="btn btn-secondary">Cancelar</button>
+        <button (click)="guardarMeta()" class="btn btn-purple">Actualizar Meta</button>
       </div>
     </div>
   </div>
