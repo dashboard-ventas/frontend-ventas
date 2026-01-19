@@ -9,6 +9,7 @@ import { ApiService, Categoria, Marca, Venta } from "../../services/api.service"
     selector: 'app-dashboard',
     standalone: true,
     imports: [CommonModule, FormsModule, BaseChartDirective],
+    styleUrls: ['./dashboard.component.css'],
     templateUrl: './dashboard.component.html'
 })
 export class DashboardComponent implements OnInit {
@@ -182,7 +183,7 @@ export class DashboardComponent implements OnInit {
                 const ventasRealizadas = agrupado[marca.nombre]?.monto || 0;
                 const meta = marca.meta || 0;
                 const porcentaje = meta > 0 ? Math.min((ventasRealizadas / meta) * 100, 100) : 0;
-                
+
                 return {
                     nombre: marca.nombre,
                     ventas: ventasRealizadas,
