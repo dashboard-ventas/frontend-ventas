@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from "@angular/core";
+import {Component, OnInit, Inject, PLATFORM_ID, ChangeDetectorRef} from "@angular/core";
 import { CommonModule, isPlatformBrowser } from "@angular/common";
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
@@ -83,7 +83,8 @@ export class DashboardComponent implements OnInit {
 
     constructor(
         private api: ApiService,
-        @Inject(PLATFORM_ID) private platformId: Object
+        @Inject(PLATFORM_ID) private platformId: Object,
+        private cdr: ChangeDetectorRef
     ) {
         Chart.register(...registerables);
         this.isBrowser = isPlatformBrowser(this.platformId);
@@ -102,6 +103,8 @@ export class DashboardComponent implements OnInit {
             this.marcas = data.marcas;
             this.marcasDashboard = data.marcas;
             this.actualizarDashboard();
+
+            this.cdr.detectChanges();
         });
     }
 
@@ -192,6 +195,7 @@ export class DashboardComponent implements OnInit {
                     cumplido: ventasRealizadas >= meta && meta > 0
                 };
             }).sort((a, b) => b.porcentaje - a.porcentaje);
+            this.cdr.detectChanges();
         });
     }
 
