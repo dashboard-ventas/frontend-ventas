@@ -3,31 +3,59 @@ import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 
 export interface Categoria { id: string; nombre: string; }
-export interface Marca { id: string; nombre: string; categoriaId: string; meta?: number; }
-export interface Venta { id?: string; fecha: string; monto: number; cantidad: number; marcaId: string; categoriaId: string; }
+export interface Marca { id: string; nombre: string; categoriaId: string; }
+
+export interface DesempenoMes {
+  marcaId: string;
+  anio: number;
+  mes: number;
+  ventaReal: number;
+  unidades: number;
+  meta: number;
+}
+
+export interface CambioDesempeno {
+  marcaId: string;
+  nombreMarca: string;
+  anio: number;
+  mes: number;
+  ventaReal: number;
+  unidades: number;
+  meta: number;
+}
+
+export interface HistorialLog {
+  id?: string;
+  fecha: string;
+  marca: string;
+  mesAfectado: number;
+  campo: string;
+  valorAnterior: number;
+  valorNuevo: number;
+}
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 
 export class ApiService {
-    private baseUrl = 'https://backend-ventas-172543286322.us-central1.run.app/api';
+  private baseUrl = 'http://localhost:3000/api';
 
-    constructor(private http: HttpClient){ }
+  constructor(private http: HttpClient){ }
 
-    getConfig(): Observable<{categorias: Categoria[], marcas: Marca[]}> {
-        return this.http.get<{categorias: Categoria[], marcas: Marca[]}>(`${this.baseUrl}/config`);
-    }
+  getConfig(): Observable<{categorias: Categoria[], marcas: Marca[]}> {
+    return this.http.get<{categorias: Categoria[], marcas: Marca[]}>(`${this.baseUrl}/config`);
+  }
 
-    getVentas(): Observable<Venta[]> {
-        return this.http.get<Venta[]>(`${this.baseUrl}/ventas`);
-    }
+  getDesempeno(anio: number): Observable<DesempenoMes[]> {
+    return this.http.get<DesempenoMes[]>(`${this.baseUrl}/desempeno?anio=${anio}`);
+  }
 
-    addVenta(venta: Venta): Observable<any> {
-        return this.http.post(`${this.baseUrl}/ventas`, venta);
-    }
+  saveDesempenoBatch(cambios: CambioDesempeno[]): Observable<any> {
+    return this.http.post(`${this.baseUrl}/desempeno/batch`, { cambios });
+  }
 
-    updateMeta(marcaId: string, meta: number): Observable<any> {
-        return this.http.put(`${this.baseUrl}/marcas/${marcaId}/meta`, { meta });
-    }
+  getHistorial(): Observable<HistorialLog[]> {
+    return this.http.get<HistorialLog[]>(`${this.baseUrl}/historial`);
+  }
 }

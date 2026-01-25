@@ -3,173 +3,150 @@
 
     <div class="header-card">
       <div class="header-text">
-        <h1>Dashboard de Ventas</h1>
-        <p>Resumen general y métricas de rendimiento</p>
-      </div>
-      <div class="header-actions">
-        <button (click)="abrirModalMeta()" class="btn btn-purple">
-          Cambiar Meta
-        </button>
-        <button (click)="abrirModal()" class="btn btn-primary">
-          + Nueva Venta
-        </button>
-      </div>
-    </div>
-
-    <div class="card filter-section">
-      <div class="filter-group">
-        <div class="filter-item">
-          <label>Categoría</label>
-          <select [(ngModel)]="filtros.categoriaId" (change)="onFiltroCategoriaChange()">
-            <option value="">Todas</option>
-            <option *ngFor="let c of categorias" [value]="c.id">{{ c.nombre }}</option>
-          </select>
-        </div>
-        <div class="filter-item">
-          <label>Marca</label>
-          <select [(ngModel)]="filtros.marcaId">
-            <option value="">Todas</option>
-            <option *ngFor="let m of marcasDashboard" [value]="m.id">{{ m.nombre }}</option>
-          </select>
-        </div>
-        <div class="filter-item">
-          <label>Mes</label>
-          <input type="month" [(ngModel)]="filtros.mes">
-        </div>
-        <button (click)="aplicarFiltros()" class="btn btn-dark btn-filter">
-          Filtrar
-        </button>
+        <h1>Dashboard Comercial {{ anioActual }}</h1>
+        <p>Gestión de desempeño mensual y metas</p>
       </div>
     </div>
 
     <div class="card">
-      <h3 class="card-title">Gráfico de Rendimiento</h3>
+      <div class="card-header-flex">
+        <h3 class="card-title">Comparativo de Rendimiento</h3>
+        <div class="chart-controls">
+          <button class="btn btn-sm"
+                  [ngClass]="filtrosGrafico.metricas === 'monto' ? 'btn-primary' : 'btn-outline'"
+                  (click)="toggleMetrica()">
+            Ver Montos (S/.)
+          </button>
+          <button class="btn btn-sm"
+                  [ngClass]="filtrosGrafico.metricas === 'unidades' ? 'btn-primary' : 'btn-outline'"
+                  (click)="toggleMetrica()">
+            Ver Unidades
+          </button>
+        </div>
+      </div>
+
+      <div class="brands-filter">
+        <label *ngFor="let m of marcas" class="checkbox-pill">
+          <input type="checkbox"
+                 [checked]="filtrosGrafico.marcasSeleccionadas.includes(m.id)"
+                 (change)="toggleMarcaFiltro(m.id)">
+          {{ m.nombre }}
+        </label>
+      </div>
+
       <div class="chart-container">
-        <canvas *ngIf="isBrowser" baseChart [data]="barChartData" [options]="barChartOptions" [type]="barChartType"></canvas>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3 class="card-title">Progreso de Metas por Marca</h3>
-      <div class="meta-grid">
-        <div *ngFor="let item of progresoMetas" class="meta-card">
-          <div class="meta-header">
-            <span class="meta-name">{{ item.nombre }}</span>
-            <span class="status-badge"
-                  [ngClass]="item.cumplido ? 'status-success' : 'status-warning'">
-                        {{ item.porcentaje | number:'1.0-0' }}%
-                    </span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" [style.width.%]="item.porcentaje"></div>
-          </div>
-          <div class="meta-footer">
-            <span>Ventas: <strong>S/. {{ item.ventas | number:'1.0-0' }}</strong></span>
-            <span>Meta: S/. {{ item.meta | number:'1.0-0' }}</span>
-          </div>
-        </div>
-        <div *ngIf="progresoMetas.length === 0" class="no-data-msg">
-          No hay datos para mostrar metas.
-        </div>
+        <div id="containerG2" style="height: 400px; width: 100%;"></div>
       </div>
     </div>
 
     <div class="card table-card">
-      <div class="table-header">
-        <h3 class="card-title">Historial Detallado</h3>
+      <div class="card-header-flex">
+        <h3 class="card-title">Editor de Desempeño Mensual</h3>
+
+        <div class="brand-selector">
+          <label>Seleccionar Marca a Editar:</label>
+          <select [(ngModel)]="marcaSeleccionadaId" (change)="onMarcaTablaChange()" class="form-control-lg">
+            <option value="" disabled>-- Elige una marca --</option>
+            <option *ngFor="let m of marcas" [value]="m.id">{{ m.nombre }}</option>
+          </select>
+        </div>
       </div>
-      <div class="table-responsive">
-        <table class="data-table">
+
+      <div class="table-responsive" *ngIf="marcaSeleccionadaId">
+        <table class="matrix-table">
           <thead>
           <tr>
-            <th>Fecha</th>
-            <th>Marca</th>
-            <th class="text-center">Cantidad</th>
-            <th class="text-right">Monto</th>
+            <th class="sticky-col">Indicador</th>
+            <th *ngFor="let mes of datosTabla">{{ mes.mesNombre }}</th>
           </tr>
           </thead>
           <tbody>
-          <tr *ngFor="let venta of ventasPaginadas">
-            <td>{{ venta.fecha }}</td>
-            <td>{{ venta.marca }}</td>
-            <td class="text-center">
-              <span class="qty-badge">{{ venta.cantidad }}</span>
+          <tr>
+            <td class="sticky-col label-row">Venta Real (S/.)</td>
+            <td *ngFor="let fila of datosTabla">
+              <input type="number" class="input-cell"
+                     [(ngModel)]="fila.ventaReal"
+                     (change)="onCeldaChange(fila)"
+                     min="0">
             </td>
-            <td class="text-right amount-text">S/. {{ venta.monto | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td class="sticky-col label-row">Unidades</td>
+            <td *ngFor="let fila of datosTabla">
+              <input type="number" class="input-cell"
+                     [(ngModel)]="fila.unidades"
+                     (change)="onCeldaChange(fila)"
+                     min="0">
+            </td>
+          </tr>
+          <tr>
+            <td class="sticky-col label-row">Meta (S/.)</td>
+            <td *ngFor="let fila of datosTabla">
+              <input type="number" class="input-cell meta-input"
+                     [(ngModel)]="fila.meta"
+                     (change)="onCeldaChange(fila)"
+                     min="0">
+            </td>
+          </tr>
+          <tr class="calc-row">
+            <td class="sticky-col label-row">Variación %</td>
+            <td *ngFor="let fila of datosTabla"
+                [ngClass]="{'text-green': fila.variacion >= 0, 'text-red': fila.variacion < 0}">
+              {{ fila.variacion | number:'1.0-1' }}%
+            </td>
+          </tr>
+          <tr class="calc-row">
+            <td class="sticky-col label-row">Score</td>
+            <td *ngFor="let fila of datosTabla">
+                  <span class="score-badge"
+                        [ngClass]="{'score-high': fila.score >= 100, 'score-mid': fila.score >= 80 && fila.score < 100, 'score-low': fila.score < 80}">
+                      {{ fila.score | number:'1.0-0' }}%
+                  </span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <div class="save-actions">
+          <p *ngIf="cambiosSinGuardar" class="unsaved-warning">⚠ Tienes cambios sin guardar</p>
+          <button class="btn btn-primary btn-lg" (click)="guardarCambiosTabla()">
+            Guardar Cambios
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="!marcaSeleccionadaId" class="empty-state">
+        <p>Selecciona una marca arriba para ver y editar su tabla de desempeño.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Historial de Cambios</h3>
+      <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+          <tr>
+            <th>Fecha/Hora</th>
+            <th>Marca</th>
+            <th>Mes Afectado</th>
+            <th>Campo Modificado</th>
+            <th>Valor Anterior</th>
+            <th>Valor Nuevo</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let log of historial">
+            <td class="text-muted text-sm">{{ log.fecha | date:'dd/MM/yy HH:mm' }}</td>
+            <td><strong>{{ log.marca }}</strong></td>
+            <td>{{ meses[log.mesAfectado - 1] }}</td>
+            <td>{{ log.campo }}</td>
+            <td class="text-red">{{ log.valorAnterior | number }}</td>
+            <td class="text-green">{{ log.valorNuevo | number }}</td>
           </tr>
           </tbody>
         </table>
       </div>
-
-      <div class="pagination-controls">
-        <button (click)="cambiarPagina(-1)" [disabled]="paginaActual === 1" class="btn btn-outline">
-          Anterior
-        </button>
-        <span class="page-info">Página {{ paginaActual }} de {{ totalPaginas || 1 }}</span>
-        <button (click)="cambiarPagina(1)" [disabled]="paginaActual >= totalPaginas" class="btn btn-outline">
-          Siguiente
-        </button>
-      </div>
     </div>
-  </div>
 
-  <div *ngIf="mostrarModal" class="modal-overlay">
-    <div class="modal-container">
-      <div class="modal-header bg-blue">
-        <h2>Registrar Nueva Venta</h2>
-        <button (click)="cerrarModales()" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group"><label>Fecha</label><input type="date" [(ngModel)]="formulario.fecha"></div>
-        <div class="form-group">
-          <label>Categoría</label>
-          <select [(ngModel)]="formulario.categoriaId" (change)="onFormCategoriaChange()">
-            <option *ngFor="let c of categorias" [value]="c.id">{{c.nombre}}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Marca</label>
-          <select [(ngModel)]="formulario.marcaId">
-            <option *ngFor="let m of marcasFormulario" [value]="m.id">{{m.nombre}}</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Monto</label><input type="number" [(ngModel)]="formulario.monto"></div>
-          <div class="form-group"><label>Cantidad</label><input type="number" [(ngModel)]="formulario.cantidad"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button (click)="cerrarModales()" class="btn btn-secondary">Cancelar</button>
-        <button (click)="guardarVenta()" class="btn btn-primary">Guardar</button>
-      </div>
-    </div>
   </div>
-
-  <div *ngIf="mostrarModalMeta" class="modal-overlay">
-    <div class="modal-container meta-modal-width">
-      <div class="modal-header bg-purple">
-        <h2>Definir Meta de Venta</h2>
-        <button (click)="cerrarModales()" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-desc">Selecciona una marca y define cuánto esperas vender (S/.) en total.</p>
-        <div class="form-group">
-          <label>Marca</label>
-          <select [(ngModel)]="formularioMeta.marcaId">
-            <option value="">-- Seleccionar Marca --</option>
-            <option *ngFor="let m of marcas" [value]="m.id">{{m.nombre}}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Meta Objetivo (S/.)</label>
-          <input type="number" [(ngModel)]="formularioMeta.nuevoMonto" placeholder="Ej: 5000">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button (click)="cerrarModales()" class="btn btn-secondary">Cancelar</button>
-        <button (click)="guardarMeta()" class="btn btn-purple">Actualizar Meta</button>
-      </div>
-    </div>
-  </div>
-
 </div>
