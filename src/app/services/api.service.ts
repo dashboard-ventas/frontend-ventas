@@ -39,7 +39,7 @@ export interface HistorialLog {
 })
 
 export class ApiService {
-  private baseUrl = 'http://localhost:3000/api';
+  private baseUrl = 'https://backend-ventas-172543286322.us-central1.run.app/api';
 
   constructor(private http: HttpClient){ }
 
