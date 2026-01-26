@@ -1,9 +1,9 @@
 import {Component, OnInit, Inject, PLATFORM_ID, ChangeDetectorRef, AfterViewInit} from "@angular/core";
 import { CommonModule, isPlatformBrowser } from "@angular/common";
 import { FormsModule } from '@angular/forms';
-import { Line } from '@antv/g2plot';
+import { Line, Column } from '@antv/g2plot';
 import {Chart, registerables, ChartConfiguration, ChartType} from "chart.js";
-import { ApiService, Categoria, Marca, DesempenoMes, CambioDesempeno, HistorialLog } from "../../services/api.service";
+import { ApiService, Categoria, Marca, DesempenoMes, HistorialLog } from "../../services/api.service";
 
 @Component({
   selector: 'app-dashboard',
@@ -23,9 +23,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   dataDesempeno: DesempenoMes[] = [];
   historial: HistorialLog[] = [];
 
+  paginaActual: number = 1;
+  itemsPorPagina: number = 10;
+
   filtrosGrafico = {
     marcasSeleccionadas: [] as string[],
+    mesesSeleccionados: [] as number[],
     metricas: 'monto',
+    tipoGrafico: 'line'
   };
 
   marcaSeleccionadaId: string = "";
@@ -49,7 +54,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
   };
 
-  private linePlot: Line | undefined;
+  private chartPlot: any | undefined;
 
   constructor(
     private api: ApiService,
@@ -62,7 +67,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     if (this.isBrowser) {
+      this.filtrosGrafico.mesesSeleccionados = Array.from({length: 12}, (_, i) => i + 1);
       this.cargarDatosIniciales();
+    }
+  }
+
+  get historialPaginado(): HistorialLog[] {
+    const inicio = (this.paginaActual - 1) * this.itemsPorPagina;
+    const fin = inicio + this.itemsPorPagina;
+    return this.historial.slice(inicio, fin);
+  }
+
+  get totalPaginas(): number {
+    return Math.ceil(this.historial.length / this.itemsPorPagina);
+  }
+
+  cambiarPagina(delta: number) {
+    const nuevaPagina = this.paginaActual + delta;
+    if (nuevaPagina >= 1 && nuevaPagina <= this.totalPaginas) {
+      this.paginaActual = nuevaPagina;
     }
   }
 
@@ -80,15 +103,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   recargarDatos() {
     this.api.getDesempeno(this.anioActual).subscribe({
       next: (response: any) => {
-        let datosLimpios = [];
+        let datosLimpios: DesempenoMes[] = [];
 
         if (Array.isArray(response)) {
           datosLimpios = response;
         } else if (response && Array.isArray(response.data)) {
-          console.log('Detectada respuesta envuelta en .data, extrayendo...');
           datosLimpios = response.data;
-        } else {
-          console.warn('Formato desconocido, se usará lista vacía.');
         }
 
         this.dataDesempeno = datosLimpios;
@@ -97,27 +117,23 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         if (this.marcaSeleccionadaId) {
           this.prepararDatosTabla(this.marcaSeleccionadaId);
         }
+
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Error API:', err);
+        console.error('Error API Desempeño:', err);
         this.dataDesempeno = [];
         this.actualizarGrafico();
       }
     });
 
     this.api.getHistorial().subscribe({
-      next: (response: any) => {
-        if (Array.isArray(response)) {
-          this.historial = response;
-        } else if (response && Array.isArray(response.data)) {
-          this.historial = response.data;
-        } else {
-          this.historial = [];
-        }
+      next: (r: any) => {
+        this.historial = Array.isArray(r) ? r : r.data || [];
+
         this.cdr.detectChanges();
       },
-      error: (err) => console.error(err)
+      error: (err) => console.error('Error API Historial', err)
     });
   }
 
@@ -130,95 +146,72 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   actualizarGrafico() {
     if (!this.isBrowser) return;
 
-    const dataParaG2: any[] = [];
+    let datosParaGraficar = [...this.dataDesempeno];
 
-    const marcasActivas = this.marcas.filter(m =>
-      this.filtrosGrafico.marcasSeleccionadas.includes(m.id)
-    );
+    if (this.marcaSeleccionadaId && this.datosTabla.length > 0) {
+      datosParaGraficar = datosParaGraficar.filter(d => d.marcaId !== this.marcaSeleccionadaId);
+
+      const marcaActual = this.marcas.find(m => m.id === this.marcaSeleccionadaId);
+
+      this.datosTabla.forEach(fila => {
+        datosParaGraficar.push({
+          marcaId: this.marcaSeleccionadaId,
+          anio: this.anioActual,
+          mes: fila.mesIndex,
+          ventaReal: fila.ventaReal || 0,
+          unidades: fila.unidades || 0,
+          meta: fila.meta || 0,
+          // @ts-ignore
+          nombreMarca: marcaActual?.nombre
+        });
+      });
+    }
+
+    const dataParaG2: any[] = [];
+    const marcasActivas = this.marcas.filter(m => this.filtrosGrafico.marcasSeleccionadas.includes(m.id));
 
     marcasActivas.forEach(marca => {
-      const datosMarca = this.dataDesempeno.filter(d => d.marcaId === marca.id);
+      const datosMarca = datosParaGraficar.filter(d => d.marcaId === marca.id);
 
       this.meses.forEach((nombreMes, index) => {
         const numMes = index + 1;
+        if (!this.filtrosGrafico.mesesSeleccionados.includes(numMes)) return;
 
         const registro = datosMarca.find(d => d.mes === numMes);
-
         let valor = 0;
+
         if (registro) {
-          valor = this.filtrosGrafico.metricas === 'monto' ? registro.ventaReal : registro.unidades;
+          valor = this.filtrosGrafico.metricas === 'monto' ? Number(registro.ventaReal) : Number(registro.unidades);
         }
 
         dataParaG2.push({
           mes: nombreMes,
           valor: valor,
-          marca: marca.nombre
+          marca: marca.nombre,
+          rawMes: numMes
         });
       });
     });
 
     const contenedor = document.getElementById('containerG2');
     if (!contenedor) return;
+    if (this.chartPlot) { this.chartPlot.destroy(); }
 
-    // Si ya existe, destruirlo para evitar conflictos de renderizado previos
-    if (this.linePlot) {
-      this.linePlot.destroy();
-    }
-
-    this.linePlot = new Line(contenedor, {
+    const commonConfig = {
       data: dataParaG2,
       xField: 'mes',
       yField: 'valor',
       seriesField: 'marca',
-
-      // 1. SOLUCIÓN AL CRASH: Desactivamos animación compleja
       animation: false,
-
-      // 2. SOLUCIÓN EJES INVISIBLES: Configuramos explícitamente los ejes
-      xAxis: {
-        label: {
-          autoHide: false,
-          autoRotate: false,
-          style: {
-            fill: '#6b7280', // Color gris visible
-            fontSize: 12
-          }
-        },
-        line: {
-          style: {
-            stroke: '#e5e7eb',
-            lineWidth: 1
-          }
-        }
-      },
-      yAxis: {
-        grid: {
-          line: {
-            style: {
-              lineDash: [4, 4],
-              stroke: '#e5e7eb'
-            }
-          }
-        },
-        label: {
-          // Formateador para el eje Y (S/. o Unidades)
-          formatter: (v: any) => {
-            return this.filtrosGrafico.metricas === 'monto'
-              ? `S/. ${v}`
-              : `${v}`;
-          },
-          style: {
-            fill: '#6b7280',
-            fontSize: 12
-          }
-        }
-      },
-
-      legend: {
-        position: 'top',
-      },
+      legend: { position: 'top' },
       color: ['#5B8FF9', '#5AD8A6', '#5D7092', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA'],
-
+      xAxis: { label: { style: { fill: '#6b7280', fontSize: 12 } } },
+      yAxis: {
+        label: {
+          formatter: (v: any) => this.filtrosGrafico.metricas === 'monto' ? `S/. ${v}` : `${v}`,
+          style: { fill: '#6b7280', fontSize: 12 }
+        }
+      },
       tooltip: {
         formatter: (datum: any) => {
           return {
@@ -226,20 +219,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             value: this.filtrosGrafico.metricas === 'monto' ? `S/. ${datum.valor}` : `${datum.valor} und.`
           };
         },
-      },
-      point: {
-        size: 4,
-        shape: 'circle',
-        style: {
-          fill: 'white',
-          lineWidth: 2,
-        },
-      },
-      // Habilita interacciones para que el tooltip fluya mejor
-      interactions: [{ type: 'marker-active' }]
-    });
+      }
+    };
 
-    this.linePlot.render();
+    if (this.filtrosGrafico.tipoGrafico === 'column') {
+      // @ts-ignore
+      this.chartPlot = new Column(contenedor, { ...commonConfig, isGroup: true, columnStyle: { radius: [4, 4, 0, 0] } });
+    } else {
+      // @ts-ignore
+      this.chartPlot = new Line(contenedor, { ...commonConfig, point: { size: 4, shape: 'circle' } });
+    }
+    this.chartPlot.render();
   }
 
   toggleMetrica() {
@@ -247,12 +237,34 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.actualizarGrafico();
   }
 
+  toggleTipoGrafico(tipo: 'line' | 'column') {
+    this.filtrosGrafico.tipoGrafico = tipo;
+    this.actualizarGrafico();
+  }
+
   toggleMarcaFiltro(marcaId: string) {
     const index = this.filtrosGrafico.marcasSeleccionadas.indexOf(marcaId);
-    if (index >= 0) {
-      this.filtrosGrafico.marcasSeleccionadas.splice(index, 1);
+    if (index >= 0) this.filtrosGrafico.marcasSeleccionadas.splice(index, 1);
+    else this.filtrosGrafico.marcasSeleccionadas.push(marcaId);
+    this.actualizarGrafico();
+  }
+
+  toggleMesFiltro(mesIndex: number) {
+    const numMes = mesIndex + 1;
+    const index = this.filtrosGrafico.mesesSeleccionados.indexOf(numMes);
+    if (index >= 0) this.filtrosGrafico.mesesSeleccionados.splice(index, 1);
+    else {
+      this.filtrosGrafico.mesesSeleccionados.push(numMes);
+      this.filtrosGrafico.mesesSeleccionados.sort((a, b) => a - b);
+    }
+    this.actualizarGrafico();
+  }
+
+  toggleTodosMeses(seleccionar: boolean) {
+    if (seleccionar) {
+      this.filtrosGrafico.mesesSeleccionados = Array.from({length: 12}, (_, i) => i + 1);
     } else {
-      this.filtrosGrafico.marcasSeleccionadas.push(marcaId);
+      this.filtrosGrafico.mesesSeleccionados = [];
     }
     this.actualizarGrafico();
   }
@@ -267,6 +279,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    this.cambiosSinGuardar = false;
+
     this.datosTabla = Array.from({ length: 12 }, (_, i) => ({
       mesIndex: i + 1,
       mesNombre: this.meses[i],
@@ -275,7 +289,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       meta: 0,
       variacion: 0,
       score: 0,
-      editado: false
+      editado: false,
+      original: { ventaReal: 0, unidades: 0, meta: 0 }
     }));
 
     const datosMarca = this.dataDesempeno.filter(d => d.marcaId === marcaId);
@@ -285,31 +300,30 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.datosTabla[index].ventaReal = d.ventaReal;
         this.datosTabla[index].unidades = d.unidades;
         this.datosTabla[index].meta = d.meta;
+
+        this.datosTabla[index].original = {
+          ventaReal: d.ventaReal,
+          unidades: d.unidades,
+          meta: d.meta
+        };
+
         this.calcularIndicadores(this.datosTabla[index]);
       }
     });
   }
 
   onCeldaChange(fila: any) {
-    fila.editado = true;
-    this.cambiosSinGuardar = true;
+    const haCambiado =
+      fila.ventaReal !== fila.original.ventaReal ||
+      fila.unidades !== fila.original.unidades ||
+      fila.meta !== fila.original.meta;
+
+    fila.editado = haCambiado;
+
+    this.cambiosSinGuardar = this.datosTabla.some(f => f.editado);
+
     this.calcularIndicadores(fila);
 
-    const itemGlobal = this.dataDesempeno.find(d => d.marcaId === this.marcaSeleccionadaId && d.mes === fila.mesIndex);
-    if(itemGlobal) {
-      itemGlobal.ventaReal = fila.ventaReal;
-      itemGlobal.unidades = fila.unidades;
-      itemGlobal.meta = fila.meta;
-    } else {
-      this.dataDesempeno.push({
-        marcaId: this.marcaSeleccionadaId,
-        anio: this.anioActual,
-        mes: fila.mesIndex,
-        ventaReal: fila.ventaReal,
-        unidades: fila.unidades,
-        meta: fila.meta
-      });
-    }
     this.actualizarGrafico();
   }
 
@@ -324,7 +338,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   guardarCambiosTabla() {
-    const cambios: CambioDesempeno[] = [];
+    const cambios: any[] = [];
     const marca = this.marcas.find(m => m.id === this.marcaSeleccionadaId);
 
     this.datosTabla.forEach(fila => {
@@ -334,9 +348,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           nombreMarca: marca?.nombre || 'Desconocida',
           anio: this.anioActual,
           mes: fila.mesIndex,
+
           ventaReal: fila.ventaReal,
           unidades: fila.unidades,
-          meta: fila.meta
+          meta: fila.meta,
+
+          valorAnteriorVenta: fila.original.ventaReal,
+          valorAnteriorUnidades: fila.original.unidades,
+          valorAnteriorMeta: fila.original.meta
         });
       }
     });
@@ -345,20 +364,13 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
     this.api.saveDesempenoBatch(cambios).subscribe({
       next: () => {
-        alert('Cambios guardados correctamente');
         this.cambiosSinGuardar = false;
+
+        alert('Cambios guardados correctamente');
+
         this.recargarDatos();
       },
       error: (err) => alert('Error al guardar: ' + err.message)
     });
-  }
-
-  getColorParaMarca(id: string): string {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return '#' + '00000'.substring(0, 6 - c.length) + c;
   }
 }
